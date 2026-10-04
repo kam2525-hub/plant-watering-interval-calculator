@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>観葉植物の水やりペース判定シミュレーター</title>
+    <style>
+        :root {
+            --primary-color: #2d6a4f;
+            --primary-light: #52b788;
+            --primary-dark: #1b4332;
+            --accent-color: #d8f3dc;
+            --bg-color: #f4f7f5;
+            --card-bg: #ffffff;
+            --text-main: #2b2d42;
+            --text-sub: #6c757d;
+            --border-color: #e9ecef;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+            --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+            --radius-lg: 16px;
+            --radius-md: 10px;
+            --transition: all 0.25s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 20px 12px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--primary-dark);
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .header-title svg {
+            fill: var(--primary-color);
+            width: 32px;
+            height: 32px;
+        }
+
+        .header-desc {
+            color: var(--text-sub);
+            font-size: 0.9rem;
+        }
+
+        /* Layout Grid */
+        .app-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 840px) {
+            .app-grid {
+                grid-template-columns: 380px 1fr;
+                align-items: start;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            color: var(--primary-dark);
+            font-weight: 700;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 8px;
+        }
+
+        .card-title svg {
+            fill: var(--primary-color);
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            color: var(--text-main);
+        }
+
+        select, input[type="date"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background-color: #fafafa;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            outline: none;
+            transition: var(--transition);
+        }
+
+        select:focus, input[type="date"]:focus {
+            border-color: var(--primary-light);
+            background-color: #fff;
+            box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.2);
+        }
+
+        /* Season Cards Display */
+        .season-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .season-card {
+            background-color: #fafafa;
+            border-radius: var(--radius-md);
+            padding: 14px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .season-card.active {
+            background-color: #fff;
+            border-color: var(--primary-light);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .season-card.active::before {
+            content: "現在";
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--primary-color);
+            color: #fff;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-bottom-left-radius: 6px;
+            font-weight: bold;
+        }
+
+        .season-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .season-card.active .season-name {
+            color: var(--primary-dark);
+        }
+
+        .season-days {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+            margin: 4px 0;
+        }
+
+        .season-unit {
+            font-size: 0.75rem;
+            font-weight: normal;
+            color: var(--text-sub);
+        }
+
+        .season-desc {
+            font-size: 0.7rem;
+            color: var(--text-sub);
+            line-height: 1.2;
+        }
+
+        /* Next Date Calculator Box */
+        .next-water-box {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+            color: white;
+            border-radius: var(--radius-md);
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+
+        .next-water-box h3 {
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .next-water-box h3 svg {
+            fill: #fff;
+            width: 18px;
+            height: 18px;
+        }
+
+        .calc-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .calc-inputs label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.75rem;
+        }
+
+        .calc-inputs input, .calc-inputs select {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            font-size: 0.85rem;
+            padding: 8px;
+        }
+
+        .calc-inputs select option {
+            color: var(--text-main);
+            background: #fff;
+        }
+
+        .result-date-display {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .result-date-label {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .result-date-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Advice Section */
+        .advice-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--primary-light);
+            padding: 12px 16px;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        }
+
+        .advice-box h4 {
+            font-size: 0.85rem;
+            color: var(--primary-dark);
+            margin-bottom: 4px;
+        }
+
+        .advice-box p {
+            font-size: 0.8rem;
+            color: var(--text-main);
+            line-height: 1.4;
+        }
+
+        /* Footer / Action */
+        .reset-btn {
+            background: none;
+            border: none;
+            color: var(--text-sub);
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: underline;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 12px;
+            padding: 4px;
+        }
+
+        .reset-btn:hover {
+            color: #d90429;
+        }
+
+        .reset-btn svg {
+            fill: currentColor;
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Icons embedded */
+        .icon-svg {
+            display: inline-block;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-title">
+            <svg viewBox="0 0 24 24"><path d="M12,3E11.5,3 11,3.2 10.5,3.6C7,6.3 3,11 3,15A9,9 0 0,0 12,24A9,9 0 0,0 21,15C21,11 17,6.3 13.5,3.6C13,3.2 12.5,3 12,3M12,5.5C15,8 19,12.1 19,15A7,7 0 0,1 12,22A7,7 0 0,1 5,15C5,12.1 9,8 12,5.5Z"/></svg>
+            水やりペース判定シミュレーター
+        </div>
+        <p class="header-desc">鉢の環境を選ぶだけで、季節ごとの最適な水やり間隔を自動算出します</p>
+    </header>
+
+    <div class="app-grid">
+        <!-- Input Form Section -->
+        <section class="card">
+            <div class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3M12,17L7,12H10V8H14V12H17L12,17Z"/></svg>
+                育成環境の設定
+            </div>
+            <form id="simulatorForm">
+                <div class="form-group">
+                    <label for="plantType">植物の種類</label>
+                    <select id="plantType">
+                        <option value="foliage">一般観葉植物 (パキラ, モンステラ等)</option>
+                        <option value="succulent">多肉植物・サボテン</option>
+                        <option value="fern">シダ類・熱帯植物 (湿気を好む)</option>
+                        <option value="ficus">ゴムの木・フィカス類</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="potSize">鉢の大きさ</label>
+                    <select id="potSize">
+                        <option value="small">小型 (3〜4号 / 直径9〜12cm)</option>
+                        <option value="medium" selected>中型 (5〜7号 / 直径15〜21cm)</option>
+                        <option value="large">大型 (8号以上 / 直径24cm〜)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="potMaterial">鉢の材質</label>
+                    <select id="potMaterial">
+                        <option value="terracotta">素焼き鉢・テラコッタ (乾きやすい)</option>
+                        <option value="plastic" selected>プラスチック・陶器・化粧鉢 (普通)</option>
+                        <option value="glass">底穴なし・ガラス容器 (乾きにくい)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="sunlight">日当たり</label>
+                    <select id="sunlight">
+                        <option value="direct">直射日光・日当たりの良い窓辺</option>
+                        <option value="bright" selected>明るい日陰 (レースカーテン越し)</option>
+                        <option value="shade">日陰・部屋の奥 (日光が届きにくい)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="ventilation">風通し</label>
+                    <select id="ventilation">
+                        <option value="good">非常に良い (サーキュレーター・窓開け)</option>
+                        <option value="normal" selected>普通 (日常的な部屋換気程度)</option>
+                        <option value="poor">悪い (密閉空間・風が通らない)</option>
+                    </select>
+                </div>
+            </form>
+            <button type="button" class="reset-btn" id="resetBtn">
+                <svg viewBox="0 0 24 24"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
+                設定を初期状態に戻す
+            </button>
+        </section>
+
+        <!-- Result Section -->
+        <section class="card">
+            <div class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M19,19H5V5H19M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M16.59,7.58L10,14.17L7.41,11.59L6,13L10,17L18,9L16.59,7.58Z"/></svg>
+                季節別おすすめ水やり間隔
+            </div>
+
+            <div class="season-grid">
+                <div class="season-card" id="card-spring">
+                    <div class="season-name">🌸 春</div>
+                    <div class="season-days" id="days-spring">-</div>
+                    <div class="season-desc">土が乾いたらたっぷり</div>
+                </div>
+                <div class="season-card" id="card-summer">
+                    <div class="season-name">☀️ 夏</div>
+                    <div class="season-days" id="days-summer">-</div>
+                    <div class="season-desc">乾きが早いため頻繁に</div>
+                </div>
+                <div class="season-card" id="card-autumn">
+                    <div class="season-name">🍁 秋</div>
+                    <div class="season-days" id="days-autumn">-</div>
+                    <div class="season-desc">徐々に回数を減らす</div>
+                </div>
+                <div class="season-card" id="card-winter">
+                    <div class="season-name">❄️ 冬</div>
+                    <div class="season-days" id="days-winter">-</div>
+                    <div class="season-desc">乾燥気味に管理</div>
+                </div>
+            </div>
+
+            <!-- Next Water Day Calculator -->
+            <div class="next-water-box">
+                <h3>
+                    <svg viewBox="0 0 24 24"><path d="M19,19H5V8H19M16,1V3H8V1H6V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3H18V1M17,11H12V16H17V11Z"/></svg>
+                    次回予定日の計算
+                </h3>
+                <div class="calc-inputs">
+                    <div>
+                        <label for="lastWatered">前回あげた日</label>
+                        <input type="date" id="lastWatered">
+                    </div>
+                    <div>
+                        <label for="currentSeason">現在の季節</label>
+                        <select id="currentSeason">
+                            <option value="spring">春 (4月〜6月)</option>
+                            <option value="summer">夏 (7月〜9月)</option>
+                            <option value="autumn">秋 (10月〜11月)</option>
+                            <option value="winter">冬 (12月〜3月)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="result-date-display">
+                    <div class="result-date-label">次回の目安日</div>
+                    <div class="result-date-value" id="nextWaterDate">----/--/--</div>
+                </div>
+            </div>
+
+            <!-- Dynamic Advice -->
+            <div class="advice-box">
+                <h4>💡 この植物・環境へのアドバイス</h4>
+                <p id="adviceText">条件を選択すると、管理のポイントが表示されます。</p>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+    // System Logic Definition
+    const baseIntervals = {
+        foliage: 5,   // 一般観葉植物
+        succulent: 10, // 多肉植物
+        fern: 3,      // シダ類
+        ficus: 6      // フィカス類
+    };
+
+    const modifiers = {
+        potSize: { small: 0.75, medium: 1.0, large: 1.35 },
+        potMaterial: { terracotta: 0.75, plastic: 1.0, glass: 1.4 },
+        sunlight: { direct: 0.7, bright: 1.0, shade: 1.4 },
+        ventilation: { good: 0.8, normal: 1.0, poor: 1.3 }
+    };
+
+    const seasonalMultipliers = {
+        spring: 1.0,
+        summer: 0.5,
+        autumn: 1.0,
+        winter: 2.2
+    };
+
+    // DOM Elements
+    const form = document.getElementById('simulatorForm');
+    const plantTypeEl = document.getElementById('plantType');
+    const potSizeEl = document.getElementById('potSize');
+    const potMaterialEl = document.getElementById('potMaterial');
+    const sunlightEl = document.getElementById('sunlight');
+    const ventilationEl = document.getElementById('ventilation');
+    
+    const daysSpringEl = document.getElementById('days-spring');
+    const daysSummerEl = document.getElementById('days-summer');
+    const daysAutumnEl = document.getElementById('days-autumn');
+    const daysWinterEl = document.getElementById('days-winter');
+    
+    const lastWateredEl = document.getElementById('lastWatered');
+    const currentSeasonEl = document.getElementById('currentSeason');
+    const nextWaterDateEl = document.getElementById('nextWaterDate');
+    const adviceTextEl = document.getElementById('adviceText');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // Calculated values state
+    let calculatedDays = { spring: 0, summer: 0, autumn: 0, winter: 0 };
+
+    // Initialize Current Date & Season
+    function initDates() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        lastWateredEl.value = `${year}-${month}-${day}`;
+
+        // Set default season based on month
+        const m = today.getMonth() + 1;
+        if (m >= 4 && m <= 6) currentSeasonEl.value = 'spring';
+        else if (m >= 7 && m <= 9) currentSeasonEl.value = 'summer';
+        else if (m >= 10 && m <= 11) currentSeasonEl.value = 'autumn';
+        else currentSeasonEl.value = 'winter';
+    }
+
+    // Calculation Engine
+    function calculatePace() {
+        const plant = plantTypeEl.value;
+        const size = potSizeEl.value;
+        const material = potMaterialEl.value;
+        const light = sunlightEl.value;
+        const vent = ventilationEl.value;
+
+        // Base calculation
+        const base = baseIntervals[plant];
+        const mod = modifiers.potSize[size] *
+                    modifiers.potMaterial[material] *
+                    modifiers.sunlight[light] *
+                    modifiers.ventilation[vent];
+
+        // Calculate each season
+        Object.keys(seasonalMultipliers).forEach(season => {
+            let days = Math.round(base * mod * seasonalMultipliers[season]);
+            if (days < 1) days = 1; // Minimum 1 day
+            calculatedDays[season] = days;
+        });
+
+        // Update UI Cards
+        daysSpringEl.innerHTML = `${calculatedDays.spring} <span class="season-unit">日に1回</span>`;
+        daysSummerEl.innerHTML = `${calculatedDays.summer} <span class="season-unit">日に1回</span>`;
+        daysAutumnEl.innerHTML = `${calculatedDays.autumn} <span class="season-unit">日に1回</span>`;
+        daysWinterEl.innerHTML = `${calculatedDays.winter} <span class="season-unit">日に1回</span>`;
+
+        // Highlight Current Season
+        document.querySelectorAll('.season-card').forEach(card => card.classList.remove('active'));
+        const activeCard = document.getElementById(`card-${currentSeasonEl.value}`);
+        if(activeCard) activeCard.classList.add('active');
+
+        // Update Next Water Date
+        updateNextWaterDate();
+
+        // Update Dynamic Advice
+        updateAdvice(plant, material, vent, light);
+
+        // Save State
+        saveState();
+    }
+
+    function updateNextWaterDate() {
+        const lastDateVal = lastWateredEl.value;
+        if (!lastDateVal) return;
+
+        const lastDate = new Date(lastDateVal);
+        const season = currentSeasonEl.value;
+        const intervalDays = calculatedDays[season];
+
+        const nextDate = new Date(lastDate);
+        nextDate.setDate(nextDate.getDate() + intervalDays);
+
+        const year = nextDate.getFullYear();
+        const month = String(nextDate.getMonth() + 1).padStart(2, '0');
+        const day = String(nextDate.getDate()).padStart(2, '0');
+
+        const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
+        const weekStr = weekDays[nextDate.getDay()];
+
+        nextWaterDateEl.textContent = `${year}/${month}/${day} (${weekStr})`;
+    }
+
+    function updateAdvice(plant, material, vent, light) {
+        let adviceList = [];
+
+        if (plant === 'succulent') {
+            adviceList.push("多肉植物は土が芯までしっかり乾いてからさらに数日待って水やりをします。");
+        } else if (plant === 'fern') {
+            adviceList.push("シダ類は水切れに弱いため、土の表面が乾き始めたら早めに与えてください。霧吹きでの葉水も効果的です。");
+        }
+
+        if (material === 'glass') {
+            adviceList.push("底穴のない容器は根腐れリスクが高まります。水を与えたあと、余分な水は傾けて捨ててください。");
+        }
+
+        if (vent === 'poor') {
+            adviceList.push("風通しが悪い場所では土が蒸れて根腐れしやすくなります。サーキュレーターの使用をおすすめします。");
+        }
+
+        if (light === 'shade') {
+            adviceList.push("日陰では植物の光合成が緩やかになり、水分消費が減ります。水のあげすぎに注意してください。");
+        }
+
+        if (adviceList.length === 0) {
+            adviceList.push("基本は『土の表面が乾いたら、鉢底から水が流れ出るまでたっぷり与える』です。受け皿に溜まった水は必ず捨てましょう。");
+        }
+
+        adviceTextEl.textContent = adviceList.join(" ");
+    }
+
+    // LocalStorage Logic
+    function saveState() {
+        const state = {
+            plantType: plantTypeEl.value,
+            potSize: potSizeEl.value,
+            potMaterial: potMaterialEl.value,
+            sunlight: sunlightEl.value,
+            ventilation: ventilationEl.value,
+            currentSeason: currentSeasonEl.value,
+            lastWatered: lastWateredEl.value
+        };
+        localStorage.setItem('plant_simulator_state', JSON.stringify(state));
+    }
+
+    function loadState() {
+        const saved = localStorage.getItem('plant_simulator_state');
+        if (!saved) return false;
+
+        try {
+            const state = JSON.parse(saved);
+            if (state.plantType) plantTypeEl.value = state.plantType;
+            if (state.potSize) potSizeEl.value = state.potSize;
+            if (state.potMaterial) potMaterialEl.value = state.potMaterial;
+            if (state.sunlight) sunlightEl.value = state.sunlight;
+            if (state.ventilation) ventilationEl.value = state.ventilation;
+            if (state.currentSeason) currentSeasonEl.value = state.currentSeason;
+            if (state.lastWatered) lastWateredEl.value = state.lastWatered;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Event Listeners
+    form.addEventListener('change', calculatePace);
+    currentSeasonEl.addEventListener('change', calculatePace);
+    lastWateredEl.addEventListener('input', updateNextWaterDate);
+
+    resetBtn.addEventListener('click', () => {
+        localStorage.removeItem('plant_simulator_state');
+        plantTypeEl.value = 'foliage';
+        potSizeEl.value = 'medium';
+        potMaterialEl.value = 'plastic';
+        sunlightEl.value = 'bright';
+        ventilationEl.value = 'normal';
+        initDates();
+        calculatePace();
+    });
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+        initDates();
+        loadState();
+        calculatePace();
+    });
+</script>
+
+</body>
+</html>
